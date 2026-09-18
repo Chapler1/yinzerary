@@ -1,0 +1,13 @@
+{
+  "name": "Yinzerary",
+  "short_name": "Yinzerary",
+  "description": "Your Pittsburgh itinerary: events and farmers markets.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#1c1f26",
+  "theme_color": "#1c1f26",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

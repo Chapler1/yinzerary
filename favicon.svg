@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Yinzerary">
+  <title>Yinzerary</title>
+  <defs><clipPath id="left"><polygon points="386.5,-33.1 125.5,513.4 -200,513.4 -200,-33.1"/></clipPath></defs>
+  <rect width="512" height="512" rx="112" fill="#1c1f26"/>
+  <polygon points="94.2,104.0 164.2,104.0 256.0,240.1 347.8,104.0 417.8,104.0 285.0,300.9 285.0,436.0 227.0,436.0 227.0,300.9" fill="#FFB81C"/>
+  <polygon points="94.2,104.0 164.2,104.0 256.0,240.1 347.8,104.0 417.8,104.0 285.0,300.9 285.0,436.0 227.0,436.0 227.0,300.9" fill="#F3EEE2" clip-path="url(#left)"/>
+</svg>
