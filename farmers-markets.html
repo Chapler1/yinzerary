@@ -12,7 +12,6 @@
 <nav>
   <span class="brand">Yinzerary</span>
   <a href="index.html" class="tab">Browse All</a>
-  <a href="calendar.html" class="tab">Calendar</a>
   <a href="farmers-markets.html" class="tab active">Farmers Markets</a>
 </nav>
 <main class="main-fill">
@@ -30,7 +29,7 @@
     <button data-day="5">Sat</button>
     <button data-day="6">Sun</button>
   </div>
-  <label class="hide-over-toggle"><input type="checkbox" id="hide-over"> Hide Out of Season Markets</label>
+  <label class="hide-over-toggle"><input type="checkbox" id="hide-over" checked> Hide Out of Season Markets</label>
 </div>
 
 <div class="fm-layout">
@@ -82,7 +81,15 @@ function fitMinZoom() { map.setMinZoom(map.getBoundsZoom(MAX_BOUNDS, true)); }
 map.invalidateSize();
 map.setView(REF_CENTER, 9.5);  // needs some initial view before projections work
 fitMinZoom();
-map.setView(REF_CENTER, defaultZoom());
+// Phones: the desktop-sized area would show every pin piled together, so open on the area the
+// markets actually cover, and allow a second zoom-in level so the pins can be separated and tapped.
+const IS_PHONE = window.matchMedia('(max-width: 700px)').matches;
+const MARKET_AREA = L.latLngBounds([40.28, -80.24], [40.63, -79.72]);
+const START_CENTER = IS_PHONE ? MARKET_AREA.getCenter() : REF_CENTER;
+// The "fit" zoom can fall below the zoom-out limit on a small screen; never open past it.
+const DEFAULT_ZOOM = Math.max(IS_PHONE ? map.getBoundsZoom(MARKET_AREA) : defaultZoom(), map.getMinZoom());
+map.setMaxZoom(DEFAULT_ZOOM + (IS_PHONE ? 2 : 1));  // zoom in one level past the opening view (two on phones)
+map.setView(START_CENTER, DEFAULT_ZOOM);
 
 // Esri National Geographic basemap (keyless). Native tiles stop at zoom 12; Leaflet upscales beyond that.
 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', {
@@ -121,7 +128,11 @@ function build() {
   items = Array.from(list.querySelectorAll('.fm-item'));
   items.forEach(el => el.addEventListener('click', () => {
     const i = parseInt(el.dataset.index, 10);
-    map.flyTo([MARKETS[i].lat, MARKETS[i].lon], 14);
+    // when the list sits below the map (small screens), bring the map back into view first
+    if (window.matchMedia('(max-width: 900px)').matches) {
+      document.getElementById('farmers-map').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    map.flyTo([MARKETS[i].lat, MARKETS[i].lon], map.getMaxZoom());
     markers[i].openPopup();
   }));
 }

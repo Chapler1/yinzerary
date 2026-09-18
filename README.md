@@ -8,7 +8,6 @@ data in `data/` is written daily by a separate private program and pushed here; 
 load it in the browser.
 
 - `index.html` - browse and filter every upcoming event
-- `calendar.html` - month calendar (`?m=YYYY-MM`)
 - `farmers-markets.html` - map of area farmers markets
 - `assets/` - shared CSS and JS
 - `static/` - category placeholder images

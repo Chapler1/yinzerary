@@ -165,3 +165,76 @@
   /* long URLs in descriptions shouldn't cause horizontal scrollbars */
   .blurb { overflow-wrap: anywhere; }
   .cal-side-list { overflow-x: hidden; }
+
+  /* active tag filters, shown as removable pills under the filter form */
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 18px; }
+  .pills[hidden] { display: none; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; color: #fff; }
+  .pill.in { background: var(--river); }
+  .pill.out { background: #a23b2f; }
+  .pill button { border: 0; background: rgba(255,255,255,.25); color: #fff; width: 20px; height: 20px; border-radius: 50%; font-size: 15px; line-height: 1; cursor: pointer; padding: 0; }
+  .pill button:hover { background: rgba(255,255,255,.45); }
+
+  /* ===== Tablet / phone ===== */
+  @media (max-width: 900px) {
+    /* farmers markets: the fixed-to-the-viewport map+list layout becomes a normal scrolling
+       page - map on top, market list underneath */
+    html, body { height: auto; }
+    body.page-fill-viewport { height: auto; min-height: 100vh; overflow: visible; display: block; }
+    main.main-fill { display: block; overflow: visible; padding: 16px 16px 40px; }
+    .fm-layout { display: block; overflow: visible; }
+    #farmers-map { height: 62vh; min-height: 340px; margin-bottom: 14px; }
+    .fm-side { display: block; overflow: visible; }
+    .fm-side-list { overflow: visible; }
+  }
+
+  @media (max-width: 700px) {
+    nav { padding: 0 12px; }
+    .brand { font-size: 19px; padding: 14px 12px 14px 0; margin-right: 0; }
+    nav a.tab { font-size: 15px; padding: 14px 10px; }
+    main { padding: 18px 16px 48px; }
+    h1 { font-size: 26px; }
+    .subtitle { font-size: 13.5px; }
+
+    /* filters: two columns, search and Clear full width; 16px inputs stop iOS zooming on focus */
+    form.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; align-items: end; }
+    form.filters > div:first-child, #f-clear-wrap { grid-column: 1 / -1; }
+    form.filters input, form.filters select { width: 100%; font-size: 16px; padding: 9px 10px; min-width: 0; }
+    #f-clear-wrap .btn { width: 100%; padding: 10px; }
+    .pill { font-size: 14px; padding: 5px 7px 5px 12px; }
+    .pill button { width: 26px; height: 26px; font-size: 17px; }
+    .legend { gap: 6px 14px; font-size: 12.5px; }
+
+    /* event cards: one column, image on top instead of beside the text */
+    .card-grid { grid-template-columns: 1fr; gap: 18px; }
+    .card-grid .card { flex-direction: column; height: auto; }
+    .card-grid .card img { order: -1; flex: none; width: 100%; height: 170px; }
+    .card-grid .card-body { overflow: visible; padding: 12px 14px 14px; }
+    .card-grid .blurb { flex: none; max-height: 132px; }
+    .card-grid .card:hover { transform: none; }
+    .day-heading { font-size: 17px; }
+
+    /* farmers markets */
+    .fm-toolbar { gap: 8px; }
+    .day-filter button { padding: 8px 14px; font-size: 14px; }
+    .hide-over-toggle { margin-left: 0; font-size: 14px; padding: 4px 0; }
+    .fm-item { padding: 12px 14px; }
+    .leaflet-control-attribution { font-size: 9px; }
+  }
+
+  /* tablets: two columns, but stack each card (image on top) - side-by-side is too tight at this width */
+  @media (max-width: 900px) {
+    .card-grid { gap: 18px; }
+    .card-grid .card { flex-direction: column; height: auto; }
+    .card-grid .card img { order: -1; flex: none; width: 100%; height: 160px; }
+    .card-grid .card-body { overflow: visible; padding: 12px 14px 14px; }
+    .card-grid .blurb { flex: none; max-height: 132px; }
+    .card-grid .card:hover { transform: none; }
+  }
+
+  /* very narrow phones: two filter columns are too tight for date fields, so stack them */
+  @media (max-width: 380px) {
+    form.filters { grid-template-columns: minmax(0, 1fr); }
+    nav a.tab { padding: 14px 8px; font-size: 14px; }
+    .brand { font-size: 17px; }
+  }

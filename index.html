@@ -10,23 +10,24 @@
 <nav>
   <span class="brand">Yinzerary</span>
   <a href="index.html" class="tab active">Browse All</a>
-  <a href="calendar.html" class="tab">Calendar</a>
   <a href="farmers-markets.html" class="tab">Farmers Markets</a>
 </nav>
 <main>
 <div class="content-narrow">
-<h1>Browse All Events</h1>
-<p class="subtitle">Every upcoming event we've ingested. Recurring farmers markets have their own <a href="farmers-markets.html">dedicated page</a>.</p>
+<h1>Browse Pittsburgh Events</h1>
+<p class="subtitle">We pull data from <span id="source-count">many</span> sources to bring you the latest events.</p>
 <p class="stamp" id="stamp"></p>
 
 <form class="filters" id="filters" onsubmit="return false">
   <div><label for="f-q">Search</label><input type="text" id="f-q" placeholder="keyword..."></div>
-  <div><label for="f-tag">Tag</label><select id="f-tag"><option value="">All</option></select></div>
-  <div><label for="f-source">Source</label><select id="f-source"><option value="">All</option></select></div>
+  <div><label for="f-show">Show tag</label><select id="f-show"><option value="">Add a tag&hellip;</option></select></div>
+  <div><label for="f-hide">Hide tag</label><select id="f-hide"><option value="">Add a tag&hellip;</option></select></div>
   <div><label for="f-from">From</label><input type="date" id="f-from"></div>
   <div><label for="f-to">To</label><input type="date" id="f-to"></div>
-  <div id="f-clear-wrap" hidden><button type="button" class="btn secondary" id="f-clear">Clear</button></div>
+  <div id="f-clear-wrap" hidden><button type="button" class="btn secondary" id="f-clear">Clear all</button></div>
 </form>
+
+<div class="pills" id="pills" hidden></div>
 
 <div class="legend">
   <span>&#127882; Festival / fair</span>
@@ -38,6 +39,7 @@
 
 <p class="subtitle" id="count">Loading&hellip;</p>
 <div class="card-grid" id="grid"></div>
+<div id="sentinel" aria-hidden="true"></div>
 </div>
 </main>
 
@@ -47,63 +49,131 @@ const grid = document.getElementById('grid');
 const countEl = document.getElementById('count');
 const el = id => document.getElementById(id);
 let EVENTS = [];
+let TAG_COUNTS = {};
+const showTags = new Set();  // events must have at least one of these (if any are set)
+const hideTags = new Set();  // events with any of these are hidden
 
-function fillSelect(select, values) {
-  values.forEach(v => {
-    const o = document.createElement('option');
-    o.value = o.textContent = v;
-    select.appendChild(o);
+// Rebuild both tag dropdowns, leaving out tags that are already a pill.
+function fillTagSelects() {
+  const tags = Object.keys(TAG_COUNTS).sort((a, b) => a.localeCompare(b));
+  [['f-show', 'Add a tag…'], ['f-hide', 'Add a tag…']].forEach(([id, placeholder]) => {
+    const select = el(id);
+    select.innerHTML = '';
+    select.appendChild(new Option(placeholder, ''));
+    tags.filter(t => !showTags.has(t) && !hideTags.has(t))
+        .forEach(t => select.appendChild(new Option(t + ' (' + TAG_COUNTS[t] + ')', t)));
   });
+}
+
+function renderPills() {
+  const pills = el('pills');
+  const pill = (tag, kind) =>
+    '<span class="pill ' + kind + '">' + (kind === 'in' ? 'Show: ' : 'Hide: ') + escapeHtml(tag) +
+    '<button type="button" data-tag="' + escapeHtml(tag) + '" data-kind="' + kind + '" ' +
+    'aria-label="Remove ' + escapeHtml(tag) + ' filter">&times;</button></span>';
+  const html = [...showTags].map(t => pill(t, 'in')).join('') + [...hideTags].map(t => pill(t, 'out')).join('');
+  pills.innerHTML = html;
+  pills.hidden = !html;
 }
 
 function currentFilters() {
   return {
     q: el('f-q').value.trim().toLowerCase(),
-    tag: el('f-tag').value,
-    source: el('f-source').value,
     from: el('f-from').value,
     to: el('f-to').value,
   };
 }
 
+// Only a screenful or two of cards is in the DOM at a time: the filtered list is kept in
+// memory and the next batch is appended as the page scrolls near the bottom.
+const BATCH_SIZE = 60;
+let filtered = [];
+let renderedCount = 0;
+let lastDay = null;
+
+function appendBatch() {
+  const batch = filtered.slice(renderedCount, renderedCount + BATCH_SIZE);
+  let html = '';
+  batch.forEach(e => {
+    const day = e.start_dt.slice(0, 10);
+    if (day !== lastDay) { html += dayHeading(day); lastDay = day; }  // lastDay carries across batches
+    html += eventCard(e);
+  });
+  grid.insertAdjacentHTML('beforeend', html);
+  renderedCount += batch.length;
+}
+
+// Keep loading while the bottom of the list is within ~1200px of the screen. Runs after each
+// render and on scroll/resize, so tall monitors that one batch doesn't fill get more too.
+function fillIfNeeded() {
+  while (renderedCount < filtered.length &&
+         el('sentinel').getBoundingClientRect().top < window.innerHeight + 1200) {
+    appendBatch();
+  }
+}
+// The check is one getBoundingClientRect per event, so no throttling is needed.
+window.addEventListener('scroll', fillIfNeeded, { passive: true });
+window.addEventListener('resize', fillIfNeeded);
+
 function render() {
   const f = currentFilters();
-  const events = EVENTS.filter(e => {
+  filtered = EVENTS.filter(e => {
     const day = e.start_dt.slice(0, 10);
-    if (f.tag && !e.tags.includes(f.tag)) return false;
-    if (f.source && !e.sources.some(s => s.source === f.source)) return false;
+    if (showTags.size && !e.tags.some(t => showTags.has(t))) return false;
+    if (hideTags.size && e.tags.some(t => hideTags.has(t))) return false;
     if (f.from && day < f.from) return false;
     if (f.to && day > f.to) return false;
     if (f.q && !(e.title + ' ' + (e.description || '')).toLowerCase().includes(f.q)) return false;
     return true;
   });
 
-  let html = '', lastDay = null;
-  events.forEach(e => {
-    const day = e.start_dt.slice(0, 10);
-    if (day !== lastDay) { html += dayHeading(day); lastDay = day; }
-    html += eventCard(e);
-  });
-  grid.innerHTML = events.length ? html : '<div class="empty" style="grid-column:1/-1">No events match these filters.</div>';
-  countEl.textContent = events.length + (events.length === 1 ? ' event' : ' events');
-  el('f-clear-wrap').hidden = !(f.q || f.tag || f.source || f.from || f.to);
+  grid.innerHTML = filtered.length ? '' : '<div class="empty" style="grid-column:1/-1">No events match these filters.</div>';
+  renderedCount = 0;
+  lastDay = null;
+  fillIfNeeded();
+  countEl.textContent = filtered.length + (filtered.length === 1 ? ' event' : ' events');
+  el('f-clear-wrap').hidden = !(f.q || f.from || f.to || showTags.size || hideTags.size);
 }
 
-['f-q', 'f-tag', 'f-source', 'f-from', 'f-to'].forEach(id => {
+function update() {
+  fillTagSelects();
+  renderPills();
+  render();
+}
+
+// picking a tag in either dropdown turns it into a pill
+[['f-show', showTags], ['f-hide', hideTags]].forEach(([id, set]) => {
+  el(id).addEventListener('change', () => {
+    const tag = el(id).value;
+    if (tag) { set.add(tag); update(); }
+  });
+});
+
+// the x on a pill removes that one filter
+el('pills').addEventListener('click', ev => {
+  const button = ev.target.closest('button[data-tag]');
+  if (!button) return;
+  (button.dataset.kind === 'in' ? showTags : hideTags).delete(button.dataset.tag);
+  update();
+});
+
+['f-q', 'f-from', 'f-to'].forEach(id => {
   el(id).addEventListener('input', render);
   el(id).addEventListener('change', render);
 });
 el('f-clear').addEventListener('click', () => {
-  ['f-q', 'f-tag', 'f-source', 'f-from', 'f-to'].forEach(id => { el(id).value = ''; });
-  render();
+  ['f-q', 'f-from', 'f-to'].forEach(id => { el(id).value = ''; });
+  showTags.clear();
+  hideTags.clear();
+  update();
 });
 
 loadJson('data/events.json').then(data => {
   EVENTS = data.events;
   el('stamp').textContent = stampText(data.generated_at);
-  fillSelect(el('f-tag'), [...new Set(EVENTS.flatMap(e => e.tags))].sort());
-  fillSelect(el('f-source'), [...new Set(EVENTS.flatMap(e => e.sources.map(s => s.source)))].sort());
-  render();
+  EVENTS.forEach(e => e.tags.forEach(t => { TAG_COUNTS[t] = (TAG_COUNTS[t] || 0) + 1; }));
+  el('source-count').textContent = new Set(EVENTS.flatMap(e => e.sources.map(s => s.source))).size;
+  update();
 }).catch(err => { countEl.textContent = ''; showLoadError(grid, err); });
 </script>
 </body>
