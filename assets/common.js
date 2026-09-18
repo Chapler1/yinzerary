@@ -40,6 +40,8 @@ function eventCard(e) {
       '<div class="card-title-row">' +
         '<span class="cat-icon" title="' + escapeHtml(e.category.label) + '">' + e.category.icon + '</span>' +
         '<a class="card-title" href="' + escapeHtml(e.url) + '" target="_blank" rel="noopener">' + escapeHtml(e.title) + '</a>' +
+        '<a class="btn-icon" href="' + escapeHtml(e.gcal_link) + '" target="_blank" rel="noopener" ' +
+          'title="Add to Google Calendar" aria-label="Add to Google Calendar">&#128197;</a>' +
       '</div>' +
       '<div class="card-meta">' + escapeHtml(e.date_short) + ' &middot; ' + escapeHtml(e.time_range) +
         (e.venue_name ? ' &middot; ' + escapeHtml(e.venue_name) : '') + sources + '</div>' +

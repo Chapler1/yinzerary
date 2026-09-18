@@ -238,3 +238,44 @@
     nav a.tab { padding: 14px 8px; font-size: 14px; }
     .brand { font-size: 17px; }
   }
+
+  /* ===== Phone typography and touch sizing (Google: text >= 12px, body ~16px, tap targets ~48px) ===== */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  @media (max-width: 700px) {
+    body { font-size: 16px; }
+    .subtitle { font-size: 15px; }
+    .stamp { font-size: 13px; }
+    form.filters label { font-size: 13px; }
+    .legend { font-size: 13px; }
+    .card-title { font-size: 20px; }
+    .card-meta { font-size: 14px; }
+    .tag { font-size: 12px; padding: 3px 10px; }
+    .source-link { font-size: 12px; }
+    .blurb { font-size: 16px; line-height: 1.5; }
+    .btn { font-size: 15px; }
+    .pill { font-size: 15px; }
+    .day-heading { font-size: 19px; }
+    .day-filter button { font-size: 15px; min-height: 44px; }
+    .hide-over-toggle { font-size: 15px; }
+    .hide-over-toggle input { width: 22px; height: 22px; }
+    .fm-side-count { font-size: 13px; }
+    .fm-item .name { font-size: 17px; }
+    .fm-item .when { font-size: 14px; }
+    .fm-item .meta { font-size: 13px; }
+    .leaflet-control-attribution { font-size: 12px; }
+    .leaflet-popup-content { font-size: 15px; line-height: 1.4; }
+
+    /* bigger tap targets: the calendar button and the pill remove buttons */
+    .btn-icon { width: 40px; height: 40px; font-size: 19px; }
+    .pill button { width: 32px; height: 32px; font-size: 19px; }
+    form.filters input, form.filters select { min-height: 44px; }
+
+    /* date fields: iOS gives them a fixed intrinsic width that pokes out of their column */
+    form.filters > div { min-width: 0; }
+    form.filters input[type="date"] {
+      -webkit-appearance: none; appearance: none;
+      display: block; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box;
+      background-color: #fff; text-align: left;
+    }
+    form.filters input[type="date"]::-webkit-date-and-time-value { text-align: left; min-width: 0; }
+  }
