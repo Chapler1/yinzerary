@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farmers Markets - Yinzerary</title>
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body class="page-fill-viewport">
+<nav>
+  <span class="brand">Yinzerary</span>
+  <a href="index.html" class="tab">Browse All</a>
+  <a href="calendar.html" class="tab">Calendar</a>
+  <a href="farmers-markets.html" class="tab active">Farmers Markets</a>
+</nav>
+<main class="main-fill">
+<h1 style="flex: 0 0 auto;">Farmers Markets</h1>
+
+<div class="fm-toolbar">
+  <span class="fm-toolbar-label">Day:</span>
+  <div class="day-filter" id="day-filter">
+    <button data-day="all" class="active">All</button>
+    <button data-day="0">Mon</button>
+    <button data-day="1">Tue</button>
+    <button data-day="2">Wed</button>
+    <button data-day="3">Thu</button>
+    <button data-day="4">Fri</button>
+    <button data-day="5">Sat</button>
+    <button data-day="6">Sun</button>
+  </div>
+  <label class="hide-over-toggle"><input type="checkbox" id="hide-over"> Hide Out of Season Markets</label>
+</div>
+
+<div class="fm-layout">
+  <div id="farmers-map"></div>
+  <aside class="fm-side">
+    <div class="fm-side-count" id="fm-count">Loading&hellip;</div>
+    <div class="fm-side-list" id="fm-list"></div>
+  </aside>
+</div>
+</main>
+
+<script src="assets/common.js"></script>
+<script>
+let MARKETS = [];
+let markers = [];
+let items = [];
+let currentDay = 'all';
+const RED = '#d62f1f';
+const GREY = '#9aa0a6';
+const countEl = document.getElementById('fm-count');
+const hideOverEl = document.getElementById('hide-over');
+
+// Confined to the Pittsburgh area (can't pan away from the metro or zoom out past it).
+const MAX_BOUNDS = L.latLngBounds([39.85, -81.05], [40.95, -78.95]);
+const map = L.map('farmers-map', {
+  zoomSnap: 0.1,
+  zoomDelta: 0.5,
+  maxBounds: MAX_BOUNDS,
+  maxBoundsViscosity: 1.0,
+});
+
+// Default view: tuned on a 27" monitor as zoom 11.6, centered on Pittsburgh, where the map
+// area is roughly REF_SIZE px. Smaller screens can't show that much at 11.6, so we
+// zoom out just enough to fit the same *area* (never zoomed in past 11.6).
+const REF_CENTER = L.latLng(40.4406, -79.9959);  // downtown Pittsburgh
+const REF_ZOOM = 11.6;
+const REF_SIZE = [2100, 1000];  // [width, height] px of the map on the reference monitor
+function defaultZoom() {
+  const c = map.project(REF_CENTER, REF_ZOOM);
+  const half = L.point(REF_SIZE[0] / 2, REF_SIZE[1] / 2);
+  const refBounds = L.latLngBounds(
+    map.unproject(c.subtract(half), REF_ZOOM),
+    map.unproject(c.add(half), REF_ZOOM)
+  );
+  return Math.min(REF_ZOOM, map.getBoundsZoom(refBounds));
+}
+// Can't zoom out further than needed to fill the screen with the allowed area.
+function fitMinZoom() { map.setMinZoom(map.getBoundsZoom(MAX_BOUNDS, true)); }
+map.invalidateSize();
+map.setView(REF_CENTER, 9.5);  // needs some initial view before projections work
+fitMinZoom();
+map.setView(REF_CENTER, defaultZoom());
+
+// Esri National Geographic basemap (keyless). Native tiles stop at zoom 12; Leaflet upscales beyond that.
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', {
+  maxNativeZoom: 12,
+  maxZoom: 16,
+  attribution: 'Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA, iPC'
+}).addTo(map);
+// the map container's height comes from a flex layout, not a fixed value, so
+// Leaflet needs a nudge after layout settles or it can render at 0 height.
+setTimeout(() => map.invalidateSize(), 100);
+window.addEventListener('resize', () => { map.invalidateSize(); fitMinZoom(); });
+
+function build() {
+  markers = MARKETS.map(m => {
+    const marker = L.circleMarker([m.lat, m.lon], {
+      radius: 11, color: '#fff', fillColor: RED, fillOpacity: 1, weight: 3,
+    });
+    marker.bindPopup(
+      '<strong>' + escapeHtml(m.name) + '</strong><br>' + escapeHtml(m.address) + '<br>' +
+      escapeHtml(m.schedule) + '<br>' +
+      '<a href="' + escapeHtml(m.maps_url) + '" target="_blank" rel="noopener">Open in Google Maps</a>'
+    );
+    marker.on('mouseover', () => marker.setStyle({ radius: 14 }));
+    marker.on('mouseout', () => marker.setStyle({ radius: marker.options.fillOpacity < 1 ? 7 : 11 }));
+    marker.addTo(map);
+    return marker;
+  });
+
+  const list = document.getElementById('fm-list');
+  list.innerHTML = MARKETS.map((m, i) =>
+    '<div class="fm-item" data-index="' + i + '">' +
+      '<div class="name">' + escapeHtml(m.name) + '</div>' +
+      '<div class="when"></div>' +
+      '<div class="meta">' + escapeHtml(m.short_address) + ' &middot; ' + escapeHtml(m.season) + '</div>' +
+    '</div>').join('');
+  items = Array.from(list.querySelectorAll('.fm-item'));
+  items.forEach(el => el.addEventListener('click', () => {
+    const i = parseInt(el.dataset.index, 10);
+    map.flyTo([MARKETS[i].lat, MARKETS[i].lon], 14);
+    markers[i].openPopup();
+  }));
+}
+
+function applyFilters() {
+  const day = currentDay;
+  const hideOver = hideOverEl.checked;
+  let shown = 0;
+  MARKETS.forEach((m, i) => {
+    const hidden = hideOver && m.over;
+    const active = day === 'all' || m.weekdays.includes(day);
+    const el = items[i];
+
+    if (hidden) { map.removeLayer(markers[i]); } else if (!map.hasLayer(markers[i])) { markers[i].addTo(map); }
+    markers[i].setStyle({
+      color: '#fff',
+      fillColor: active ? RED : GREY,
+      fillOpacity: active ? 1 : 0.45,
+      radius: active ? 11 : 7,
+    });
+
+    el.style.display = hidden ? 'none' : '';
+    el.classList.toggle('fm-dimmed', !active);
+    if (!hidden && active) shown++;
+
+    // Show the occurrence date/time for the *selected* day, not just
+    // whichever date happens to be chronologically soonest overall.
+    const info = day === 'all' ? m.overall : m.next_by_day[String(day)];
+    el.querySelector('.when').textContent = info ? info.date_short + ' · ' + info.time_range : (m.tba ? 'Schedule TBA' : 'Out of season');
+  });
+  const total = MARKETS.filter(m => !(hideOver && m.over)).length;
+  countEl.textContent = day === 'all' ? total + ' markets' : shown + ' open';
+}
+
+document.querySelectorAll('#day-filter button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#day-filter button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentDay = btn.dataset.day === 'all' ? 'all' : parseInt(btn.dataset.day, 10);
+    applyFilters();
+  });
+});
+hideOverEl.addEventListener('change', applyFilters);
+
+loadJson('data/farmers_markets.json').then(data => {
+  MARKETS = data.markets;
+  build();
+  applyFilters();
+}).catch(err => { countEl.textContent = ''; showLoadError(document.getElementById('fm-list'), err); });
+</script>
+</body>
+</html>

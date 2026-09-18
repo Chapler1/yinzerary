@@ -1,0 +1,9 @@
+# Editor and OS
+.vs/
+.vscode/
+Thumbs.db
+.DS_Store
+
+# Logs / scratch
+*.log
+scratch*

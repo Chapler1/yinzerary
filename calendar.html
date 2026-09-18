@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendar - Yinzerary</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="page-fill-viewport">
+<nav>
+  <span class="brand">Yinzerary</span>
+  <a href="index.html" class="tab">Browse All</a>
+  <a href="calendar.html" class="tab active">Calendar</a>
+  <a href="farmers-markets.html" class="tab">Farmers Markets</a>
+</nav>
+<main class="main-fill">
+<h1 id="month-title" style="flex: 0 0 auto;">&nbsp;</h1>
+<p class="subtitle" style="flex: 0 0 auto; margin-bottom: 12px;">Everything ingested this month, laid out day by day. Click a day to see it on the right.</p>
+
+<div class="cal-toolbar">
+  <div class="cal-nav">
+    <a class="btn secondary" id="nav-prev" href="#">&larr;</a>
+    <a class="btn secondary" id="nav-today" href="#">Today</a>
+    <a class="btn secondary" id="nav-next" href="#">&rarr;</a>
+  </div>
+  <div class="legend" style="margin-bottom: 0;">
+    <span>&#127882; Festival / fair</span>
+    <span>&#127925; Live music</span>
+    <span>&#127912; Art</span>
+    <span>&#127908; Comedy</span>
+    <span>&#128205; Other</span>
+  </div>
+</div>
+
+<div class="cal-layout">
+  <div class="cal-main">
+    <div class="cal-headerrow">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+    <div class="cal-wrap"><div class="cal-body" id="cal-body"></div></div>
+  </div>
+  <aside class="cal-side">
+    <div class="cal-side-head">
+      <h2 id="cal-side-title">&nbsp;</h2>
+      <div class="cal-side-count" id="cal-side-count"></div>
+    </div>
+    <div class="cal-side-list" id="cal-side-list"></div>
+  </aside>
+</div>
+</main>
+
+<script src="assets/common.js"></script>
+<script>
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const pad = n => String(n).padStart(2, '0');
+const iso = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+
+const today = new Date();
+const monthParam = /^(\d{4})-(\d{2})$/.exec(new URLSearchParams(location.search).get('m') || '');
+const year = monthParam ? +monthParam[1] : today.getFullYear();
+const month = monthParam ? +monthParam[2] - 1 : today.getMonth();  // 0-based
+const monthHref = (y, m) => 'calendar.html?m=' + y + '-' + pad(m + 1);  // m is 0-based, may over/underflow
+const shift = delta => { const d = new Date(year, month + delta, 1); return d; };
+
+let BY_DAY = {};
+let selectedDate = null;
+
+function renderNav() {
+  const prev = shift(-1), next = shift(1);
+  document.getElementById('month-title').textContent =
+    new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const p = document.getElementById('nav-prev'), n = document.getElementById('nav-next');
+  p.href = monthHref(prev.getFullYear(), prev.getMonth());
+  p.innerHTML = '&larr; ' + MONTH_ABBR[prev.getMonth()];
+  n.href = monthHref(next.getFullYear(), next.getMonth());
+  n.innerHTML = MONTH_ABBR[next.getMonth()] + ' &rarr;';
+  document.getElementById('nav-today').href = monthHref(today.getFullYear(), today.getMonth());
+}
+
+function renderGrid() {
+  const first = new Date(year, month, 1);
+  const start = new Date(year, month, 1 - first.getDay());          // Sunday on/before the 1st
+  const weeks = Math.ceil((first.getDay() + new Date(year, month + 1, 0).getDate()) / 7);
+  const body = document.getElementById('cal-body');
+  body.style.gridTemplateRows = 'repeat(' + weeks + ', 1fr)';
+  let html = '';
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const key = iso(d);
+    if (d.getMonth() !== month) {
+      html += '<a href="' + monthHref(d.getFullYear(), d.getMonth()) + '" class="cal-cell other-month" style="text-decoration:none;">' +
+        '<div class="cal-daynum">' + d.getDate() + '</div></a>';
+      continue;
+    }
+    const evs = BY_DAY[key] || [];
+    const chips = evs.slice(0, 3).map(e =>
+      '<a class="cal-chip" href="' + escapeHtml(e.url) + '" target="_blank" rel="noopener" title="' + escapeHtml(e.title) +
+      '" onclick="event.stopPropagation()"><span class="cat-icon">' + e.category.icon + '</span> ' + escapeHtml(e.title) + '</a>').join('');
+    html += '<div class="cal-cell' + (key === iso(today) ? ' is-today' : '') + '" data-date="' + key + '" onclick="selectDay(\'' + key + '\')">' +
+      '<div class="cal-daynum">' + d.getDate() + '</div>' + chips +
+      (evs.length > 3 ? '<span class="cal-more">+' + (evs.length - 3) + ' more</span>' : '') + '</div>';
+  }
+  body.innerHTML = html;
+}
+
+function renderSide(dateStr) {
+  const events = BY_DAY[dateStr] || [];
+  const d = new Date(dateStr + 'T00:00:00');
+  document.getElementById('cal-side-title').textContent =
+    d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  document.getElementById('cal-side-count').textContent = events.length + (events.length === 1 ? ' event' : ' events');
+  const list = document.getElementById('cal-side-list');
+  if (!events.length) { list.innerHTML = '<p class="empty">Nothing here.</p>'; return; }
+  list.innerHTML = events.map(e => `
+    <div class="side-card">
+      <img class="side-card-img" loading="lazy" src="${escapeHtml(e.image_url || placeholderFor(e))}" alt=""
+           onerror="this.onerror=null;this.src='${placeholderFor(e)}'">
+      <div class="side-card-title-row">
+        <span class="cat-icon">${e.category.icon}</span>
+        <a href="${escapeHtml(e.url)}" target="_blank" rel="noopener">${escapeHtml(e.title)}</a>
+        <a class="btn-icon" href="${escapeHtml(e.gcal_link)}" target="_blank" rel="noopener" title="Add to Google Calendar" aria-label="Add to Google Calendar">&#128197;</a>
+      </div>
+      <div class="card-meta">${escapeHtml(e.time_range)}${e.venue_name ? ' &middot; ' + escapeHtml(e.venue_name) : ''}</div>
+      <p class="blurb">${escapeHtml(e.summary.slice(0, 220))}${e.summary.length > 220 ? '&hellip;' : ''}</p>
+    </div>`).join('');
+}
+
+function selectDay(dateStr) {
+  const prev = document.querySelector('.cal-cell.is-selected');
+  if (prev) prev.classList.remove('is-selected');
+  const cell = document.querySelector('.cal-cell[data-date="' + dateStr + '"]');
+  if (cell) cell.classList.add('is-selected');
+  selectedDate = dateStr;
+  renderSide(dateStr);
+}
+
+renderNav();
+loadJson('data/events.json').then(data => {
+  data.events.forEach(e => { (BY_DAY[e.start_dt.slice(0, 10)] = BY_DAY[e.start_dt.slice(0, 10)] || []).push(e); });
+  renderGrid();
+  const inThisMonth = today.getFullYear() === year && today.getMonth() === month;
+  selectDay(inThisMonth ? iso(today) : iso(new Date(year, month, 1)));
+}).catch(err => showLoadError(document.getElementById('cal-side-list'), err));
+</script>
+</body>
+</html>
