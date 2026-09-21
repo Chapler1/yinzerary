@@ -174,7 +174,9 @@ el('f-clear').addEventListener('click', () => {
 });
 
 loadJson('data/events.json').then(data => {
-  EVENTS = data.events;
+  // Pre-filter to today-on-ward, so a stale data upload never leaves past events visible.
+  const today = todayStr();
+  EVENTS = data.events.filter(e => e.start_dt.slice(0, 10) >= today);
   el('stamp').textContent = stampText(data.generated_at);
   EVENTS.forEach(e => e.tags.forEach(t => { TAG_COUNTS[t] = (TAG_COUNTS[t] || 0) + 1; }));
   el('source-count').textContent = new Set(EVENTS.flatMap(e => e.sources.map(s => s.source))).size;

@@ -19,6 +19,14 @@ function showLoadError(container, err) {
     '<code>python -m http.server -d docs</code>.</div>';
 }
 
+// Local calendar date (YYYY-MM-DD) so day comparisons match the date strings
+// events carry, regardless of UTC offset.
+function todayStr() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+
 function stampText(generatedAt) {
   const d = new Date(generatedAt);
   return isNaN(d) ? '' : 'Data updated ' + d.toLocaleString('en-US', {
