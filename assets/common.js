@@ -27,13 +27,6 @@ function todayStr() {
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 }
 
-function stampText(generatedAt) {
-  const d = new Date(generatedAt);
-  return isNaN(d) ? '' : 'Data updated ' + d.toLocaleString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-  });
-}
-
 function placeholderFor(e) {
   return 'static/placeholders/' + e.category.css + '.svg';
 }
@@ -42,7 +35,7 @@ function eventCard(e) {
   const tags = e.tags.map(t => '<span class="tag">' + escapeHtml(t) + '</span>').join('');
   const sources = e.sources.map(s => '<span class="source-link">[' + escapeHtml(s.source) + ']</span>').join('');
   return '<div class="card">' +
-    '<img loading="lazy" src="' + escapeHtml(e.image_url || placeholderFor(e)) + '" alt="" ' +
+    '<img loading="lazy" src="' + escapeHtml(e.image_url || placeholderFor(e)) + '" alt="' + escapeHtml(e.title) + '" ' +
       'onerror="this.onerror=null;this.src=\'' + placeholderFor(e) + '\'">' +
     '<div class="card-body">' +
       '<div class="card-title-row">' +
@@ -51,11 +44,39 @@ function eventCard(e) {
         '<a class="btn-icon" href="' + escapeHtml(e.gcal_link) + '" target="_blank" rel="noopener" ' +
           'title="Add to Google Calendar" aria-label="Add to Google Calendar">&#128197;</a>' +
       '</div>' +
-      '<div class="card-meta">' + escapeHtml(e.date_short) + ' &middot; ' + escapeHtml(e.time_range) +
+      '<div class="card-meta"><time datetime="' + escapeHtml(e.start_dt) + '">' + escapeHtml(e.date_short) + '</time> &middot; ' + escapeHtml(e.time_range) +
         (e.venue_name ? ' &middot; ' + escapeHtml(e.venue_name) : '') + sources + '</div>' +
       (tags ? '<div>' + tags + '</div>' : '') +
       '<p class="blurb">' + escapeHtml(e.summary) + '</p>' +
     '</div></div>';
+}
+
+// Injects schema.org Event structured data for the soonest events, so search
+// engines that execute the page script can surface event rich results.
+function injectEventJsonLd(events, limit) {
+  const items = events.slice(0, limit).map(e => {
+    const item = {
+      '@type': 'Event',
+      name: e.title,
+      startDate: e.start_dt,
+      eventStatus: 'https://schema.org/EventScheduled',
+      eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+      url: e.url,
+    };
+    if (e.end_dt) item.endDate = e.end_dt;
+    if (e.image_url) item.image = e.image_url;
+    if (e.summary) item.description = e.summary;
+    if (e.venue_name || e.address) {
+      item.location = { '@type': 'Place' };
+      if (e.venue_name) item.location.name = e.venue_name;
+      if (e.address) item.location.address = e.address;
+    }
+    return item;
+  });
+  const script = document.createElement('script');
+  script.type = 'application/ld+json';
+  script.textContent = JSON.stringify({ '@context': 'https://schema.org', '@graph': items });
+  document.head.appendChild(script);
 }
 
 function dayHeading(isoDate) {

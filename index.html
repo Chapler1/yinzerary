@@ -3,7 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Events - Yinzerary</title>
+<title>Pittsburgh Events This Week | Yinzerary</title>
+<meta name="description" content="Browse upcoming events in Pittsburgh - concerts, festivals, art, comedy, and more, pulled daily from dozens of local sources.">
+<link rel="canonical" href="https://yinzerary.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Yinzerary">
+<meta property="og:title" content="Pittsburgh Events This Week | Yinzerary">
+<meta property="og:description" content="Browse upcoming events in Pittsburgh - concerts, festivals, art, comedy, and more, pulled daily from dozens of local sources.">
+<meta property="og:url" content="https://yinzerary.com/">
+<meta property="og:image" content="https://yinzerary.com/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Pittsburgh Events This Week | Yinzerary">
+<meta name="twitter:description" content="Browse upcoming events in Pittsburgh - concerts, festivals, art, comedy, and more, pulled daily from dozens of local sources.">
+<meta name="twitter:image" content="https://yinzerary.com/icon-512.png">
 <link rel="stylesheet" href="assets/style.css">
 <link rel="icon" href="favicon.ico" sizes="32x32">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -21,7 +33,6 @@
 <div class="content-narrow">
 <h1>Browse Pittsburgh Events</h1>
 <p class="subtitle">We pull data from <span id="source-count">many</span> sources to bring you the latest events.</p>
-<p class="stamp" id="stamp"></p>
 
 <form class="filters" id="filters" onsubmit="return false">
   <div><label for="f-q">Search</label><input type="text" id="f-q" placeholder="keyword..."></div>
@@ -177,9 +188,9 @@ loadJson('data/events.json').then(data => {
   // Pre-filter to today-on-ward, so a stale data upload never leaves past events visible.
   const today = todayStr();
   EVENTS = data.events.filter(e => e.start_dt.slice(0, 10) >= today);
-  el('stamp').textContent = stampText(data.generated_at);
   EVENTS.forEach(e => e.tags.forEach(t => { TAG_COUNTS[t] = (TAG_COUNTS[t] || 0) + 1; }));
   el('source-count').textContent = new Set(EVENTS.flatMap(e => e.sources.map(s => s.source))).size;
+  injectEventJsonLd(EVENTS, 50);
   update();
 }).catch(err => { countEl.textContent = ''; showLoadError(grid, err); });
 </script>
