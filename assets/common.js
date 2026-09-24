@@ -27,16 +27,51 @@ function todayStr() {
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 }
 
-function placeholderFor(e) {
-  return 'static/placeholders/' + e.category.css + '.svg';
+// Shown in place of a missing (or broken) event photo: the logo of the site the event
+// came from. dark = white/light logo that needs the dark tile.
+const SOURCE_LOGOS = {
+  arcane_city: { file: 'arcane_city.png' },
+  bottlerocket: { file: 'bottlerocket.png' },
+  brillobox: { file: 'brillobox.png' },
+  carnegie_museums: { file: 'carnegie_museums.svg', dark: true },
+  contemporary_craft: { file: 'contemporary_craft.png' },
+  east_end_brewing: { file: 'east_end_brewing.png', dark: true },
+  eventbrite: { file: 'eventbrite.png' },
+  new_hazlett: { file: 'new_hazlett.png' },
+  spirit: { file: 'spirit.png', dark: true },
+  ticketmaster: { file: 'ticketmaster.svg' },
+  velum: { file: 'velum.png', dark: true },
+  visitpittsburgh: { file: 'visitpittsburgh.svg', dark: true },
+};
+
+// {src, cls} for the fallback image: the first source with a logo, else the category placeholder.
+function fallbackImage(e) {
+  const s = e.sources.find(s => SOURCE_LOGOS[s.source]);
+  if (!s) return { src: 'static/placeholders/' + e.category.css + '.svg', cls: 'card-media' };
+  const logo = SOURCE_LOGOS[s.source];
+  return { src: 'static/logos/' + logo.file, cls: 'card-media source-logo' + (logo.dark ? ' source-logo--dark' : '') };
+}
+
+// The card's image slot. Photos are shown whole (not cropped) over a blurred copy of
+// themselves that fills the slot; a photo that fails to load swaps to the fallback.
+function cardMedia(e) {
+  const fallback = fallbackImage(e);
+  const alt = escapeHtml(e.title);
+  if (!e.image_url) {
+    return '<div class="' + fallback.cls + '"><img loading="lazy" src="' + fallback.src + '" alt="' + alt + '"></div>';
+  }
+  const cssUrl = e.image_url.replace(/["'()\\\s]/g, c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'));
+  return '<div class="card-media photo" style="--media-bg:url(\'' + escapeHtml(cssUrl) + '\')">' +
+    '<img loading="lazy" src="' + escapeHtml(e.image_url) + '" alt="' + alt + '" ' +
+      'onerror="this.onerror=null;this.src=\'' + fallback.src + '\';this.parentNode.className=\'' + fallback.cls + '\'">' +
+    '</div>';
 }
 
 function eventCard(e) {
   const tags = e.tags.map(t => '<span class="tag">' + escapeHtml(t) + '</span>').join('');
   const sources = e.sources.map(s => '<span class="source-link">[' + escapeHtml(s.source) + ']</span>').join('');
   return '<div class="card">' +
-    '<img loading="lazy" src="' + escapeHtml(e.image_url || placeholderFor(e)) + '" alt="' + escapeHtml(e.title) + '" ' +
-      'onerror="this.onerror=null;this.src=\'' + placeholderFor(e) + '\'">' +
+    cardMedia(e) +
     '<div class="card-body">' +
       '<div class="card-title-row">' +
         '<span class="cat-icon" title="' + escapeHtml(e.category.label) + '">' + e.category.icon + '</span>' +
@@ -44,7 +79,7 @@ function eventCard(e) {
         '<a class="btn-icon" href="' + escapeHtml(e.gcal_link) + '" target="_blank" rel="noopener" ' +
           'title="Add to Google Calendar" aria-label="Add to Google Calendar">&#128197;</a>' +
       '</div>' +
-      '<div class="card-meta"><time datetime="' + escapeHtml(e.start_dt) + '">' + escapeHtml(e.date_short) + '</time> &middot; ' + escapeHtml(e.time_range) +
+      '<div class="card-meta"><time datetime="' + escapeHtml(e.start_dt) + '">' + escapeHtml(e.date_short) + '</time>' + (e.time_range ? ' &middot; ' + escapeHtml(e.time_range) : '') +
         (e.venue_name ? ' &middot; ' + escapeHtml(e.venue_name) : '') + sources + '</div>' +
       (tags ? '<div>' + tags + '</div>' : '') +
       '<p class="blurb">' + escapeHtml(e.summary) + '</p>' +
@@ -58,7 +93,7 @@ function injectEventJsonLd(events, limit) {
     const item = {
       '@type': 'Event',
       name: e.title,
-      startDate: e.start_dt,
+      startDate: e.all_day ? e.start_dt.slice(0, 10) : e.start_dt,
       eventStatus: 'https://schema.org/EventScheduled',
       eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
       url: e.url,

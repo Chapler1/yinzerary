@@ -65,6 +65,7 @@ const grid = document.getElementById('grid');
 const countEl = document.getElementById('count');
 const el = id => document.getElementById(id);
 let EVENTS = [];
+const EXCLUDED_SOURCES = new Set(['hitchhiker_brewing']);
 let TAG_COUNTS = {};
 const showTags = new Set();  // events must have at least one of these (if any are set)
 const hideTags = new Set();  // events with any of these are hidden
@@ -188,6 +189,9 @@ loadJson('data/events.json').then(data => {
   // Pre-filter to today-on-ward, so a stale data upload never leaves past events visible.
   const today = todayStr();
   EVENTS = data.events.filter(e => e.start_dt.slice(0, 10) >= today);
+  // Drop sources we don't want to show, and any event left with no source.
+  EVENTS.forEach(e => { e.sources = e.sources.filter(s => !EXCLUDED_SOURCES.has(s.source)); });
+  EVENTS = EVENTS.filter(e => e.sources.length);
   EVENTS.forEach(e => e.tags.forEach(t => { TAG_COUNTS[t] = (TAG_COUNTS[t] || 0) + 1; }));
   el('source-count').textContent = new Set(EVENTS.flatMap(e => e.sources.map(s => s.source))).size;
   injectEventJsonLd(EVENTS, 50);
